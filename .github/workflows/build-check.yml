@@ -53,7 +53,7 @@ jobs:
           ]
           facts = ['jliugi@connect.ust.hk', 'MINIMAX', 'Tencent WXG', 'Shanghai AI Lab',
                    'Zhiyuan Honor Scholarship', 'Professor Junxian He', 'Vicent0205',
-                   'junteng88716710', 'tbK9jl4AAAAJ', 'Zifei Shan', 'Yu Cheng']
+                   'junteng88716710', 'Zifei Shan', 'Yu Cheng', 'B.Eng.', 'Ph.D. in Computer Science']
           expected_pages = {
               'index.html', 'about/index.html', 'about.html', 'cv/index.html', 'resume.html',
               'publications/index.html', 'sitemap/index.html', '404.html',
@@ -76,17 +76,20 @@ jobs:
                                   'academicpages.github.io/files', 'none@example.org']:
                   assert placeholder not in html, (rel, placeholder)
           for rel in ['index.html', 'publications/index.html', 'cv/index.html']:
+              html = (site / rel).read_text()
               parser = Text()
-              parser.feed((site / rel).read_text())
+              parser.feed(html)
               text = ' | '.join(parser.parts)
-              print('===== ' + rel + ' =====')
-              print(text)
+              if rel == 'cv/index.html':
+                  print('===== ' + rel + ' =====')
+                  print(text)
               for title in titles:
                   assert title in text, (rel, title)
               if rel != 'publications/index.html':
                   for fact in facts:
                       assert fact in text, (rel, fact)
-              assert '/LJT-Homepage/publication/synlogic/' in parser.links, rel
+              assert 'tbK9jl4AAAAJ' in html, rel
+              assert any(link.endswith('/LJT-Homepage/publication/synlogic/') for link in parser.links), rel
               print('CHECKS PASSED: ' + rel)
           print('ALL CHECKS PASSED')
           PY
