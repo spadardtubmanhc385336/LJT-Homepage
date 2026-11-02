@@ -19,9 +19,7 @@ jobs:
         run: bundle exec jekyll build --baseurl "/LJT-Homepage"
         env:
           JEKYLL_ENV: production
-      - name: List generated pages
-        run: find _site -name '*.html' | sort
-      - name: Check personal content is rendered
+      - name: Verify generated site
         run: |
           python3 - <<'PY'
           from html.parser import HTMLParser
@@ -31,10 +29,13 @@ jobs:
               def __init__(self):
                   super().__init__()
                   self.parts = []
+                  self.links = []
                   self.skip = 0
               def handle_starttag(self, tag, attrs):
                   if tag in ('script', 'style'):
                       self.skip += 1
+                  if tag == 'a':
+                      self.links.append(dict(attrs).get('href', ''))
               def handle_endtag(self, tag):
                   if tag in ('script', 'style') and self.skip:
                       self.skip -= 1
@@ -42,24 +43,50 @@ jobs:
                   if not self.skip and data.strip():
                       self.parts.append(data.strip())
 
-          for page in ['index.html', 'publications/index.html', 'cv/index.html']:
-              html = Path('_site', page).read_text()
+          titles = [
+              'SynLogic: Synthesizing Verifiable Reasoning Data at Scale for Learning Logical Reasoning and Beyond',
+              'On the Perception Bottleneck of VLMs for Chart Understanding',
+              'On the Universal Truthfulness Hyperplane Inside LLMs',
+              'In-Context Sharpness as Alerts: An Inner Representation Perspective for Hallucination Mitigation',
+              'C-Eval: A Multi-Level Multi-Discipline Chinese Evaluation Suite for Foundation Models',
+              'Composing Parameter-Efficient Modules with Arithmetic Operations',
+          ]
+          facts = ['jliugi@connect.ust.hk', 'MINIMAX', 'Tencent WXG', 'Shanghai AI Lab',
+                   'Zhiyuan Honor Scholarship', 'Professor Junxian He', 'Vicent0205',
+                   'junteng88716710', 'tbK9jl4AAAAJ', 'Zifei Shan', 'Yu Cheng']
+          expected_pages = {
+              'index.html', 'about/index.html', 'about.html', 'cv/index.html', 'resume.html',
+              'publications/index.html', 'sitemap/index.html', '404.html',
+              'publication/synlogic/index.html',
+              'publication/perception-bottleneck-of-vlms-for-chart-understanding/index.html',
+              'publication/universal-truthfulness-hyperplane-inside-llms/index.html',
+              'publication/in-context-sharpness-as-alerts/index.html',
+              'publication/c-eval/index.html',
+              'publication/composing-parameter-efficient-modules-with-arithmetic-operations/index.html',
+          }
+          site = Path('_site')
+          pages = {str(p.relative_to(site)) for p in site.rglob('*.html')}
+          print('GENERATED PAGES:', sorted(pages))
+          assert pages == expected_pages, pages ^ expected_pages
+          assert not list(site.rglob('*.tsv')), 'sample data published'
+          assert not list(site.rglob('*.csv')), 'sample data published'
+          for rel in sorted(pages):
+              html = (site / rel).read_text()
+              for placeholder in ['Your Name', 'GitHub University', 'Paper Title Number',
+                                  'academicpages.github.io/files', 'none@example.org']:
+                  assert placeholder not in html, (rel, placeholder)
+          for rel in ['index.html', 'publications/index.html', 'cv/index.html']:
               parser = Text()
-              parser.feed(html)
+              parser.feed((site / rel).read_text())
               text = ' | '.join(parser.parts)
-              print('===== ' + page + ' =====')
+              print('===== ' + rel + ' =====')
               print(text)
-              for title in [
-                  'SynLogic',
-                  'On the Perception Bottleneck of VLMs for Chart Understanding',
-                  'On the Universal Truthfulness Hyperplane Inside LLMs',
-                  'In-Context Sharpness as Alerts',
-                  'C-Eval',
-                  'Composing Parameter-Efficient Modules with Arithmetic Operations',
-              ]:
-                  assert title in text, (page, title)
-              for fact in ['jliugi@connect.ust.hk', 'MINIMAX', 'Tencent WXG', 'Shanghai AI Lab',
-                           'Zhiyuan Honor Scholarship', 'Professor Junxian He', 'Vicent0205']:
-                  assert fact in text, (page, fact)
-              print('CHECKS PASSED: ' + page)
+              for title in titles:
+                  assert title in text, (rel, title)
+              if rel != 'publications/index.html':
+                  for fact in facts:
+                      assert fact in text, (rel, fact)
+              assert '/LJT-Homepage/publication/synlogic/' in parser.links, rel
+              print('CHECKS PASSED: ' + rel)
+          print('ALL CHECKS PASSED')
           PY
